@@ -20,7 +20,7 @@ admin.initializeApp({
 const db = admin.firestore();
 
 // Razorpay Webhook Secret
-const razorpaySecret = 'your_razorpay_webhook_secret'; // Replace with your actual webhook secret
+const razorpaySecret = 'my_super_secret_key_123'; // Replace with your actual webhook secret
 
 // Health Check Route
 app.get('/', (req, res) => {
