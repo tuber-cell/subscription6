@@ -1,42 +1,51 @@
 const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 const admin = require('firebase-admin');
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// Path to your service account key file
+// Middlewares
+app.use(cors());
+app.use(bodyParser.json());
+
+// Initialize Firebase Admin SDK
 const serviceAccount = require('./serviceAccountKey.json');
 
-// Initialize Firebase Admin SDK with the service account
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: 'https://your-database-name.firebaseio.com' // Replace with your Firebase DB URL if using Firestore
 });
 
-// Example of using Firebase to send a notification (just as a test)
+const db = admin.firestore();
+
+// Health Check Route
 app.get('/', (req, res) => {
-  res.send('Hello, Subscription Project with Firebase!');
+  res.status(200).send('Firebase Subscription API is running.');
 });
 
-app.get('/send-notification', async (req, res) => {
-  const message = {
-    notification: {
-      title: 'Test Notification',
-      body: 'This is a test message from Firebase!',
-    },
-    token: '<FCM_DEVICE_TOKEN>', // Replace with actual device token
-  };
+// Endpoint to receive subscription updates (you will connect Razorpay Webhook here later)
+app.post('/subscription', async (req, res) => {
+  const { email, subscriptionStatus, paymentId, subscriptionExpiry } = req.body;
+
+  if (!email || !subscriptionStatus) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
 
   try {
-    const response = await admin.messaging().send(message);
-    console.log('Successfully sent message:', response);
-    res.status(200).send('Notification sent successfully!');
+    await db.collection('users').doc(email).set({
+      subscriptionStatus: subscriptionStatus,
+      paymentId: paymentId || null,
+      subscriptionExpiry: subscriptionExpiry || null,
+    }, { merge: true });
+
+    res.status(200).json({ message: 'Subscription data saved successfully.' });
   } catch (error) {
-    console.log('Error sending message:', error);
-    res.status(500).send('Error sending notification');
+    console.error('Error saving subscription data:', error);
+    res.status(500).json({ error: 'Failed to save subscription data.' });
   }
 });
 
-// Start the Express server
+// Start Server
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+  console.log(`Server is running on http://localhost:${port}`);
 });
